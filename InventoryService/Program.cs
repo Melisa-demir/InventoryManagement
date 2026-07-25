@@ -1,6 +1,8 @@
+using FluentValidation;
 using InventoryService.Data;
 using InventoryService.Repositories;
 using InventoryService.Services;
+using InventoryService.Validators;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +12,8 @@ builder.Services.AddDbContext<InventoryDbContext>(options =>
 
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IProductService, ProductService>();
+
+builder.Services.AddValidatorsFromAssemblyContaining<CreateProductRequestValidator>();
 
 // Add services to the container.
 
