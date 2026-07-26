@@ -5,11 +5,13 @@ namespace InventoryService.Middlewares
 {
     public class ExceptionMiddleware
     {
-        private RequestDelegate _next;
+        private readonly RequestDelegate _next;
+        private readonly ILogger<ExceptionMiddleware> _logger;
 
-        public ExceptionMiddleware(RequestDelegate next)
+        public ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddleware> logger)
         {
             _next = next;   
+            _logger = logger;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -18,8 +20,14 @@ namespace InventoryService.Middlewares
             {
                 await _next(context);
             }
-            catch (Exception)
+            catch (Exception exception)
             {
+                _logger.LogError(
+                    exception,
+                    "Beklenmeyen hata oluştu. Method:{Method}, Path: {Path}",
+                    context.Request.Method,
+                    context.Request.Path);
+
                 await HandleExceptionAsync(context);
             }
         }
@@ -33,7 +41,8 @@ namespace InventoryService.Middlewares
             var response = new
             {
                 StatusCode = context.Response.StatusCode,
-                Message = "Beklenmeyen bir hata oluştu"
+                Message = "Beklenmeyen bir hata oluştu",
+                TraceId = context.TraceIdentifier
         };
 
             var json = JsonSerializer.Serialize(response);
