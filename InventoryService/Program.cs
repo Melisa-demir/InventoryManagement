@@ -1,5 +1,6 @@
 using FluentValidation;
 using InventoryService.Data;
+using InventoryService.Middlewares;
 using InventoryService.Repositories;
 using InventoryService.Services;
 using InventoryService.Validators;
@@ -30,6 +31,8 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
+app.UseGlobalExceptionMiddleware();
 
 app.UseHttpsRedirection();
 
