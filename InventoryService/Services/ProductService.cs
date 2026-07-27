@@ -16,7 +16,6 @@ public class ProductService : IProductService
 
     public async Task<List<ProductResponse>> GetAllAsync()
     {
-        throw new Exception("Logging test hatası");
         var products =
             await _productRepository.GetAllAsync();
 
