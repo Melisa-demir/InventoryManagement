@@ -1,37 +1,63 @@
-﻿using InventoryService.DTOs;
+﻿using System.Text.Json;
+using InventoryService.DTOs;
 using InventoryService.Entities;
 using InventoryService.Repositories;
+using Microsoft.Extensions.Caching.Distributed;
 
 namespace InventoryService.Services;
 
 public class ProductService : IProductService
 {
+    private const string ProductsCacheKey = "products:all";
+
     private readonly IProductRepository _productRepository;
+    private readonly IDistributedCache _cache;
 
     public ProductService(
-        IProductRepository productRepository)
+        IProductRepository productRepository, IDistributedCache cache)
     {
         _productRepository = productRepository;
+        _cache = cache;
     }
 
     public async Task<List<ProductResponse>> GetAllAsync()
     {
+        var cachedProducts =
+            await _cache.GetStringAsync(ProductsCacheKey);
+
+        if (cachedProducts != null)
+        {
+            return JsonSerializer
+                .Deserialize<List<ProductResponse>>(cachedProducts)!;
+        }
+
+
         var products =
             await _productRepository.GetAllAsync();
 
-        return products.Select(product =>
-            new ProductResponse
+
+        var response =
+            products.Select(product => new ProductResponse
             {
                 Id = product.Id,
                 Name = product.Name,
-                Description = product.Description,
                 Price = product.Price,
-                StockQuantity = product.StockQuantity,
-                MinimumStockLevel =
-                    product.MinimumStockLevel,
-                CreatedAt = product.CreatedAt
+                StockQuantity = product.StockQuantity
             })
             .ToList();
+
+
+        await _cache.SetStringAsync(
+            ProductsCacheKey,
+            JsonSerializer.Serialize(response),
+            new DistributedCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow =
+                    TimeSpan.FromMinutes(5)
+            });
+
+
+        return response;
     }
 
     public async Task<ProductResponse?> GetByIdAsync(int id)
@@ -73,6 +99,7 @@ public class ProductService : IProductService
 
         await _productRepository.AddAsync(product);
         await _productRepository.SaveChangesAsync();
+        await _cache.RemoveAsync(ProductsCacheKey);
 
         return new ProductResponse
         {
@@ -109,8 +136,11 @@ public class ProductService : IProductService
 
         _productRepository.Update(product);
 
-        return await _productRepository
+        await _productRepository
             .SaveChangesAsync();
+        
+        await _cache.RemoveAsync(ProductsCacheKey);
+        return true;
     }
 
     public async Task<bool> DeleteAsync(int id)
@@ -125,7 +155,10 @@ public class ProductService : IProductService
 
         _productRepository.Delete(product);
 
-        return await _productRepository
+        await _productRepository
             .SaveChangesAsync();
+
+        await _cache.RemoveAsync(ProductsCacheKey);
+        return true;
     }
 }
